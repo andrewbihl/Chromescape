@@ -1,0 +1,11 @@
+Chromescape
+
+You are the plane from Asteroids, and you’ve been caught in wrong game! Tetris blocks are falling all around you, and you just want to get out. Fly out, and avoid the blocks!
+
+My game will be a non-shooting scroller in which the player flies a plane upward. In his way are blocks of different colors that kill him if he hits them–unless the block contains the same color as his plane, in which case he can simply fly right through and the block will disintegrate. Blocks are all primary colors (or black), but the plane can pick up non-primary colors and then benefits from having multiple component colors. So if the user gets an orange power-up, his plane color will change to orange and he then can go through both yellow and red blocks. He can never go through black.
+
+As he progresses, his score goes up. At certain points, he will progress to the next level, but before entering the next level he plays a bonus round for points (in which he cannot be killed). Then he proceeds back to standard game play in the next level. More difficult levels have more obstacles and a wider variety of colors. 
+
+In the bonus round (mode) at the end of each level, the plane is black and his goal is to hit as many blocks as possible (black absorbs all colors), gaining points as he does so.
+
+The goal is to get as many points as possible, and points are awarded for making it farther without crashing and for doing well in bonus rounds. The game is played using the arrow keys to move the plane.
