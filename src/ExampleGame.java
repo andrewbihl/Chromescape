@@ -15,7 +15,7 @@ import javafx.scene.shape.Shape;
  * @author Robert C. Duvall
  */
 class ExampleGame {
-    public static final String TITLE = "Example JavaFX";
+    public static final String TITLE = "My Game";
     public static final int KEY_INPUT_SPEED = 5;
     private static final double GROWTH_RATE = 1.1;
     private static final int BOUNCER_SPEED = 30;
@@ -55,10 +55,11 @@ class ExampleGame {
         myTopBlock.setFill(Color.RED);
         myBottomBlock = new Rectangle(width / 2 - 25, height / 2 + 50, 50, 50);
         myBottomBlock.setFill(Color.BISQUE);
-        // order added to the group is the order in whuch they are drawn
+        // order added to the group is the order in which they are drawn
         root.getChildren().add(myBouncer);
         root.getChildren().add(myTopBlock);
         root.getChildren().add(myBottomBlock);
+        root.getChildren().add(myButton);
         // respond to input
         myScene.setOnKeyPressed(e -> handleKeyInput(e.getCode()));
         myScene.setOnMouseClicked(e -> handleMouseInput(e.getX(), e.getY()));
