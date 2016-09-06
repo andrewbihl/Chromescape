@@ -17,6 +17,7 @@ import java.util.*;
  * @author Andrew Bihl
  */
 class ExampleGame {
+	
     public static final String TITLE = "My Game";
     public static final int KEY_INPUT_SPEED = 5;
     private static final double GROWTH_RATE = 1.1;
