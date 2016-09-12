@@ -27,7 +27,9 @@ public class Ship extends Polygon {
     	setFill(Color.WHITE);
 	}
 	
-    
+    /**
+     * Returns true if the Ship's designated vulnerable area makes contact with the shape s.
+     */
 	public boolean collidesWithShape(Shape s) {
     	Bounds bounds = getBoundsInParent();
 		double x = bounds.getMinX() + (bounds.getWidth()/2);
@@ -40,6 +42,9 @@ public class Ship extends Polygon {
 				x - horizontalBuffer < s.getBoundsInParent().getMaxX();
 	}
 	
+    /**
+     * Tells the ship to accelerate right or left
+     */
     public void accelerate(Boolean goRight){
     	boolean changeDirection = !(velocity>0 == goRight || velocity == 0);
     	boolean goingRight = velocity >= 0;
@@ -77,19 +82,30 @@ public class Ship extends Polygon {
     	return - (BASE_ACCELERATION_RATE + (currentSpeed / 10.0));
     }
     
-	
+    /**
+     * Returns the ship's width at the widest point
+     */
 	public double getWidth(){
 		return SHIP_WIDTH;
 	}
 	
+    /**
+     * Returns the ship's current velocity
+     */
 	public double getVelocity(){
 		return velocity;
 	}
 	
+    /**
+     * Modifies the ship's current velocity
+     */
 	public void setVelocity(double v){
 		velocity = v;
 	}
 	
+    /**
+     * Sets the ships color to its default mode, in which it cannot absorb any blocks.
+     */
 	public void setFillToDefault(){
 		setFill(Color.GRAY);
 	}

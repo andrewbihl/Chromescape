@@ -33,26 +33,6 @@ public class Main extends Application {
         s.setScene(scene);
         s.show();
     }
-
-    
-    public void beginGame (Stage s) {
-        // create your own game here
-        myGame = new Gameplay();
-        s.setTitle(myGame.getTitle());
-
-        // attach game to the stage and display it
-        Scene scene = myGame.init(SIZE, SIZE);
-        s.setScene(scene);
-        s.show();
-
-        // sets the game's loop
-        KeyFrame frame = new KeyFrame(Duration.millis(MILLISECOND_DELAY),
-                                      e -> myGame.step(SECOND_DELAY));
-        Timeline animation = new Timeline();
-        animation.setCycleCount(Timeline.INDEFINITE);
-        animation.getKeyFrames().add(frame);
-        animation.play();
-    }
     /**
      * Start the program.
      */

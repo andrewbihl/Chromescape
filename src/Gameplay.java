@@ -109,17 +109,69 @@ class Gameplay {
     	myRoot.getChildren().remove(removedShipLife);
     }
     
+    /**
+     * Update game visual elements
+     */
     public void step (double elapsedTime) {
     	if (shipLives.size() > 0){
     		gameplayStep();
+    	    stepNum++;
     	} 
-    	else{
-    		gameoverStep();
-    	}
-	    stepNum++;
     }
     
     private void gameplayStep(){
+        updateShipLocation();
+        // check for collisions
+        Shape collisionBlock = incrementBlocksInCollection((Iterable)obstacles);
+        if (collisionBlock != null){
+        	shipDidCollide((Rectangle) collisionBlock);
+        }
+        Shape tokenCollected = incrementBlocksInCollection((Iterable)tokens);
+        if (tokenCollected != null){
+        	shipDidCollectToken((Circle)tokenCollected);
+        }
+        
+        if (stepNum % COMMAND_FREQUENCY == 0){
+        	if (!inBonusRound){
+        		score++;
+        		if (score == nextBonusRound){
+        			enterBonusRound();
+        		}
+        	}
+        	updateShipVelocity();
+        }
+        //generate the tokens ahead of the line of blocks
+        if ((stepNum + (int)(OBSTACLE_FREQUENCY * 0.5)) % OBSTACLE_FREQUENCY==0){
+        	double rand = Math.random() * 4;
+        	if (rand > 3 && !inBonusRound){
+        		Circle token = generateToken(20, 20, null);
+        		tokens.add(token);
+        		myRoot.getChildren().add(token);
+        	}
+        }
+	    if (stepNum % OBSTACLE_FREQUENCY == 0){
+        	if (inBonusRound){
+        		if (stepNum - BONUS_ROUND_DURATION > colorStart )
+        			exitBonusRound();
+        	}
+        	else if (stepNum - COLOR_DURATION > colorStart){
+        		myShip.setFillToDefault();
+        	}
+	        generateLineOfRectangles();
+	    }
+	    scoreText.setText("Score: "+score);
+    }
+    
+    private void updateShipVelocity(){
+        if (goRight || goLeft && !(goRight && goLeft)){
+        	myShip.accelerate(goRight);
+        }
+        else{
+        	myShip.setVelocity(myShip.getVelocity()*0.9);
+        }
+    }
+    
+    private void updateShipLocation(){
     	double currentX = myShip.getTranslateX();
     	if (currentX >= myScene.getWidth()) {
     		myShip.setTranslateX(0.01);
@@ -130,50 +182,6 @@ class Gameplay {
     	else{
     		myShip.setTranslateX(currentX + myShip.getVelocity());
     	}
-        
-        // check for collisions
-        Shape collisionBlock = incrementBlocksInCollection((Iterable)obstacles);
-        if (collisionBlock != null){
-        	Rectangle block = (Rectangle) collisionBlock;
-        	shipDidCollide(block);
-        }
-        Shape tokenCollected = incrementBlocksInCollection((Iterable)tokens);
-        if (tokenCollected != null){
-        	shipDidCollectToken((Circle)tokenCollected);
-        }
-        if (stepNum % COMMAND_FREQUENCY == 0){
-        	if (!inBonusRound){
-        		score++;
-        		if (score == nextBonusRound){
-        			enterBonusRound();
-        		}
-        	}
-	        if (goRight || goLeft && !(goRight && goLeft)){
-	        	myShip.accelerate(goRight);
-	        }
-	        else{
-	        	myShip.setVelocity(myShip.getVelocity()*0.9);
-	        }
-        }
-        if ((stepNum + 15) % OBSTACLE_FREQUENCY==0){
-        	double rand = Math.random() * 4;
-        	if (rand > 3){
-        		Circle token = generateToken(20, 20, null);
-        		tokens.add(token);
-        		myRoot.getChildren().add(token);
-        	}
-        	if (inBonusRound){
-        		if (stepNum - BONUS_ROUND_DURATION > colorStart )
-        			exitBonusRound();
-        	}
-        	else if (stepNum - COLOR_DURATION > colorStart){
-        		myShip.setFillToDefault();
-        	}
-        }
-	    if (stepNum % OBSTACLE_FREQUENCY == 0){
-	        generateLineOfRectangles();
-	    }
-	    scoreText.setText("Score: "+score);
     }
     
     private void enterBonusRound(){
@@ -189,10 +197,6 @@ class Gameplay {
     	myScene.setFill(Color.BLACK);
     	inBonusRound = false;
     	nextBonusRound *= 2;
-    }
-    
-    private void gameoverStep(){
-    	
     }
     
     private void gameover(){
@@ -277,7 +281,11 @@ class Gameplay {
 		for (int i = 0; i<NUMBER_OF_OBSTACLES_PER_LINE * 2; i++){
 			indices.add(i);
 		}
-    	for (int i = 0; i < NUMBER_OF_OBSTACLES_PER_LINE; i ++){
+		int numberOfBlocks = NUMBER_OF_OBSTACLES_PER_LINE;
+		if (inBonusRound){
+			numberOfBlocks *= 0.5;
+		}
+    	for (int i = 0; i < numberOfBlocks; i ++){
     		int rand = (int) (Math.random() * indices.size());
     		Integer index = indices.remove(rand);
     		Rectangle obstacle = generateRectangle(index * blockWidth, blockWidth, null);
