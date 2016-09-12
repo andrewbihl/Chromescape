@@ -13,4 +13,6 @@ public class Obstacle extends Rectangle {
 		this.color = color;
 		this.setFill(Color.RED);
 	}
+	
+	
 }

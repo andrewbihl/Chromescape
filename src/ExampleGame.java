@@ -1,3 +1,5 @@
+import javafx.geometry.Bounds;
+import javafx.geometry.Point2D;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -5,9 +7,13 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.Shape;
+import javafx.scene.text.Text;
+import javafx.stage.Stage;
+
 import java.util.*;
 
 
@@ -20,27 +26,31 @@ class ExampleGame {
 	
     public static final String TITLE = "My Game";
     public static final int KEY_INPUT_SPEED = 5;
-    private static final double GROWTH_RATE = 1.1;
-    private static int NUMBER_OF_OBSTACLES_PER_LINE = 6;
+    private static int NUMBER_OF_OBSTACLES_PER_LINE = 4;
 
     private static final double SHIP_WIDTH = 25;
     private static final double SHIP_HEIGHT = 40;
     private static final double MAX_SPEED = 5.0;
     private static final double BASE_ACCELERATION_RATE = 0.6;
     private static final int COMMAND_FREQUENCY = 5;
+    private static final int STARTING_LIVES_COUNT = 5;
+    private static final int COLOR_DURATION = 200;
     private static int OBSTACLE_FREQUENCY = 35;
+    private static Color[] colors = {Color.RED, Color.YELLOW, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE};
     
     private Scene myScene;
     private Polygon myShip;
-    private Rectangle myTopBlock;
-    private Rectangle myBottomBlock;
     private HashSet<Obstacle> obstacles;
+    private HashSet<Circle> tokens;
+    private ArrayList<Polygon> shipLives;
     private Group myRoot;
     private double shipVelocity = 0.0;
-    
     private int commandQueueSize = 0;
     private boolean commandQueueDirectionRight = true;
-    private int stepNum = 0;
+    private int distance = 0;
+    private Text scoreText;
+    private int stepNum;
+    private int colorStart;
     
     /**
      * Returns name of the game.
@@ -56,22 +66,25 @@ class ExampleGame {
         // create a scene graph to organize the scene
         Group root = new Group();
         obstacles = new HashSet<Obstacle>();
+        tokens = new HashSet<Circle>();
+        shipLives = new ArrayList<Polygon>();
         // create a place to see the shapes
         myScene = new Scene(root, width, height, Color.BLACK);
         myRoot = root;
-        makeShip();
-        myTopBlock = new Rectangle(width / 2 - 25, height / 2 - 100, 50, 50);
-        myTopBlock.setFill(Color.RED);
-        myBottomBlock = new Rectangle(width / 2 - 25, height / 2 + 50, 50, 50);
-        myBottomBlock.setFill(Color.BISQUE);
-        // order added to the group is the order in which they are drawn
+        myShip = makeShip();
+        stepNum = 0;
+        drawShipLives(STARTING_LIVES_COUNT);
+        myShip.setFill(Color.LIGHTGRAY);
+        scoreText = new Text("0");
+        scoreText.setX(10);
+        scoreText.setY(20);
+        scoreText.setFill(Color.WHITE);
         root.getChildren().add(myShip);
-        root.getChildren().add(myTopBlock);
-        root.getChildren().add(myBottomBlock);
+        root.getChildren().add(scoreText);
         // respond to input
         myScene.setOnKeyPressed(e -> handleKeyInput(e.getCode()));
         myScene.setOnMouseClicked(e -> handleMouseInput(e.getX(), e.getY()));
-        
+        distance = 0;
         return myScene;
     }
 
@@ -81,10 +94,10 @@ class ExampleGame {
      * Note, there are more sophisticated ways to animate shapes,
      * but these simple ways work too.
      */
-    private void makeShip(){
+    private Polygon makeShip(){
     	double mid = SHIP_WIDTH / 2.0;
     	double height = myScene.getHeight();
-    	double buffer = 25;
+    	double buffer = myScene.getHeight()/5;
     	Polygon ship = new Polygon();
     	ship.getPoints().addAll(new Double[]{
     			mid, height - buffer - 7,
@@ -94,95 +107,240 @@ class ExampleGame {
     			);
     	ship.setFill(Color.WHITE);
     	ship.setTranslateX(myScene.getWidth()/2.0);
-    	myShip = ship;
+    	return ship;
+    }
+    
+    private void drawShipLives(int num){
+    	for (int i = 0; i < num; i++){
+    		addShipLife();
+    	}
+    }
+    
+    private void addShipLife(){
+		Polygon ship = makeShip();
+		ship.setScaleX(0.3);
+		ship.setScaleY(0.3);
+		ship.setTranslateX(0.4 * SHIP_WIDTH * shipLives.size());
+		shipLives.add(ship);
+		myRoot.getChildren().add(ship);
+    }
+    
+    private void removeShipLife(){
+    	Polygon removedShipLife = shipLives.remove(shipLives.size() - 1);
+    	myRoot.getChildren().remove(removedShipLife);
     }
     
     public void step (double elapsedTime) {
-    	//increment each block
-    	
-    	
+    	if (shipLives.size() > 0){
+    		gameplayStep();
+    	} 
+    	else{
+    		gameoverStep();
+    	}
+	    stepNum++;
+    }
+    
+    private void gameplayStep(){
         // update attributes
     	double currentX = myShip.getTranslateX();
     	if (currentX >= myScene.getWidth()) {
-//    		myShip.setX(myScene.getWidth() - myShip.getLayoutBounds().getWidth() - 0.01);
     		myShip.setTranslateX(0.01);
     	} 
     	else if (currentX < 0 - SHIP_WIDTH){
     		myShip.setTranslateX(myScene.getWidth() - 0.01);
-//    		myShip.setX(0.01);
     	}
     	else{
     		myShip.setTranslateX(currentX + shipVelocity);
     	}
-//		shipVelocity *= 0.8;
-        myTopBlock.setRotate(myBottomBlock.getRotate() - 1);
-        myBottomBlock.setRotate(myBottomBlock.getRotate() + 1);
         
         // check for collisions
-        // with shapes, can check precisely
-        Shape intersect = Shape.intersect(myTopBlock, myBottomBlock);
-        if (intersect.getBoundsInLocal().getWidth() != -1) {
-            myTopBlock.setFill(Color.MAROON);
+        Shape collisionBlock = incrementBlocksInCollection((Iterable)obstacles);
+        if (collisionBlock != null){
+        	Obstacle block = (Obstacle) collisionBlock;
+        	shipDidCollide(block);
         }
-        else {
-            myTopBlock.setFill(Color.RED);
+        Shape tokenCollected = incrementBlocksInCollection((Iterable)tokens);
+        if (tokenCollected != null){
+        	shipDidCollectToken((Circle)tokenCollected);
         }
-        // with images can only check bounding box
-        if (myBottomBlock.getBoundsInParent().intersects(myShip.getBoundsInParent())) {
-            myBottomBlock.setFill(Color.BURLYWOOD);
+        if (stepNum % COMMAND_FREQUENCY == 0){
+	        if (commandQueueSize > 0){
+	        	accelerateShip(commandQueueDirectionRight);
+	        	commandQueueSize --;
+	        }
+	        else{
+	        	shipVelocity *= 0.9;
+	        }
         }
-        else {
-            myBottomBlock.setFill(Color.BISQUE);
+        if ((stepNum + 15) % OBSTACLE_FREQUENCY==0){
+        	double rand = Math.random() * 4;
+        	if (rand > 3){
+        		Circle token = generateToken(20, 20, null);
+        		tokens.add(token);
+        		myRoot.getChildren().add(token);
+        	}
+        	if (stepNum - 600 > colorStart){
+        		myShip.setFill(Color.LIGHTGRAY);
+        	}
         }
-        
-        incrementObstacles();
-        if (commandQueueSize > 0 && stepNum % COMMAND_FREQUENCY == 0){
-        	accelerateShip(commandQueueDirectionRight);
-        	commandQueueSize --;
-        }
-        if (stepNum % OBSTACLE_FREQUENCY == 0){
-        	generateLineOfObstacles();
-        }
-        stepNum++;
+	    if (stepNum % OBSTACLE_FREQUENCY == 0){
+	    	distance++;
+	        generateLineOfObstacles();
+	    }
+	    scoreText.setText(String.valueOf(distance));
     }
     
-    private void incrementObstacles(){
+    private void gameoverStep(){
+    	
+    }
+    
+    private void gameover(){
+    	Text gameoverMessage = new Text("YOU LOST");
+    	gameoverMessage.setFill(Color.WHITE);
+    	double width = gameoverMessage.getLayoutBounds().getWidth();
+    	gameoverMessage.setX(myScene.getWidth()/2 - width/2);
+    	gameoverMessage.setY(myScene.getHeight()/2);
+    	double buttonY = gameoverMessage.getY() + gameoverMessage.getBoundsInLocal().getHeight();
+    	Button restartButton = new Button("Play Again?");
+    	restartButton.setLayoutY(buttonY);
+    	restartButton.setLayoutX(myScene.getWidth()/2);
+    	restartButton.setOnAction(e->restartGame());
+    	myRoot.getChildren().add(gameoverMessage);
+    	myRoot.getChildren().add(restartButton);
+    	
+    }
+    
+    private void restartGame(){
+    	myRoot.getChildren().removeAll(obstacles);
+    	obstacles = null;
+    	Stage stage = (Stage) myScene.getWindow();
+    	Scene newScene = init((int)myScene.getWidth(), (int)myScene.getHeight());
+    	stage.setScene(newScene);
+    }
+    
+//    private void incrementBlocks(){
+//    	double height = myScene.getHeight();
+////    	Iterator<Obstacle> iterator = obstacles.iterator();
+//    	Obstacle collisionBlock = null;
+////    	System.out.println(shipPoint);
+//    	
+//    	while (iterator.hasNext()) {
+//    	    Obstacle block = iterator.next();
+//    		if (block.getTranslateY() > height){
+//    			root.getChildren().remove(block);
+//    			iterator.remove();
+//    		}
+//    		else if (block.touchesPoint(x,y, horizontalBuffer, 0)){
+//    			collisionBlock = block;
+//			}
+//    		else{
+//    			block.setTranslateY(block.getTranslateY()+5);
+//    		}
+//    	}
+//    	if (collisionBlock != null){
+//    		shipDidCollide(collisionBlock);
+//    	}
+//    }
+    
+    private Shape incrementBlocksInCollection (Iterable<Shape> collection){
     	Group root = myRoot;
     	double height = myScene.getHeight();
-    	Iterator<Obstacle> iterator = obstacles.iterator();
+    	Iterator<Shape> iterator = collection.iterator();
+    	Bounds bounds = myShip.getBoundsInParent();
+    	double x = bounds.getMinX() + (bounds.getWidth()/2);
+    	double y = bounds.getMaxY() - bounds.getHeight() + 6;
+    	Point2D shipCollisionPoint = new Point2D(x, y);
+    	double horizontalBuffer = bounds.getWidth() / 4;
+    	Shape collisionBlock = null;
     	
     	while (iterator.hasNext()) {
-    	    Obstacle block = iterator.next();
+    	    Shape block = iterator.next();
     		if (block.getTranslateY() > height){
     			root.getChildren().remove(block);
     			iterator.remove();
     		}
+    		else if (shapeTouchesShipPoint(block, shipCollisionPoint, horizontalBuffer, 0)){
+    			collisionBlock = block;
+			}
     		else{
     			block.setTranslateY(block.getTranslateY()+5);
     		}
     	}
+    	return collisionBlock;
+    }
+    
+	public boolean shapeTouchesShipPoint(Shape s, Point2D point, double horizontalBuffer, double verticalBuffer) {
+		return  point.getY() + verticalBuffer > s.getBoundsInParent().getMinY() &&
+				point.getY() - verticalBuffer < s.getBoundsInParent().getMaxY() &&
+				point.getX() + horizontalBuffer > s.getBoundsInParent().getMinX() && 
+				point.getX() - horizontalBuffer < s.getBoundsInParent().getMaxX();
+	}
+    
+    private void shipDidCollide(Obstacle block){
+    	if (!myShip.getFill().equals(block.getFill())){
+	    	removeShipLife();
+	    	if (shipLives.size() == 0) {
+	    		gameover();
+	    	}
+    	}
+    	else{
+    		addShipLife();
+    	}
+    	myRoot.getChildren().remove(block);
+    	obstacles.remove(block);
+    }
+    
+    private void shipDidCollectToken(Circle token){
+    	myShip.setFill(token.getFill());
+    	colorStart = stepNum;
+    	tokens.remove(token);
+    	myRoot.getChildren().remove(token);
     }
     
     private void generateLineOfObstacles() {
     	double blockWidth = myScene.getWidth() / (NUMBER_OF_OBSTACLES_PER_LINE * 2);
 		Group root = myRoot;
+		ArrayList<Integer> indices = new ArrayList<Integer>();
+		for (int i = 0; i<NUMBER_OF_OBSTACLES_PER_LINE * 2; i++){
+			indices.add(i);
+		}
     	for (int i = 0; i < NUMBER_OF_OBSTACLES_PER_LINE; i ++){
-    		double rand = Math.random() * (NUMBER_OF_OBSTACLES_PER_LINE*2);
-    		Obstacle obstacle = generateObstacle(blockWidth, Color.GREEN);
-    		obstacle.setX(rand * blockWidth);
+    		int rand = (int) (Math.random() * indices.size());
+    		Integer index = indices.remove(rand);
+    		Obstacle obstacle = generateObstacle(index * blockWidth, blockWidth, null);
     		obstacles.add(obstacle);
     		root.getChildren().add(obstacle);
     	}
     }
     
-    private Obstacle generateObstacle(double width, Color color){
+    private Obstacle generateObstacle(double x, double width, Color color){
     	Obstacle obstacle = new Obstacle();
+    	if (color == null) {
+    		color = chooseRandomColor();
+    	}
+    	obstacle.setFill(color);
     	obstacle.setWidth(width);
     	obstacle.setHeight(20);
+    	obstacle.setX(x);
     	obstacle.setY(0);
-    	obstacle.setX(0);
-    	obstacle.setFill(color);
     	return obstacle;
+    }
+    
+    private Circle generateToken(double y, double width, Color color) {
+    	Circle token = new Circle();
+    	if (color == null){
+    		color = chooseRandomColor();
+    	}
+    	token.setFill(color);
+    	token.setCenterX(Math.random() * myScene.getWidth());
+    	token.setCenterY(5);
+    	token.setRadius(10);
+    	return token;
+    }
+    
+    private Color chooseRandomColor(){
+		int rand = (int)(Math.random() * 6);
+		return colors[rand];
     }
     
     // What to do each time a key is pressed
@@ -197,10 +355,42 @@ class ExampleGame {
             case UP:
             	if (OBSTACLE_FREQUENCY > 1)
             		OBSTACLE_FREQUENCY--;
+            	System.out.println(OBSTACLE_FREQUENCY);
             	break;
             case DOWN:
             	if (OBSTACLE_FREQUENCY < 300)
             		OBSTACLE_FREQUENCY++;
+            	System.out.println(OBSTACLE_FREQUENCY);
+            	break;
+            case DIGIT1:
+            	Circle token1 = new Circle();
+            	token1.setFill(colors[0]);
+            	shipDidCollectToken(token1);
+            	break;
+            case DIGIT2:
+            	Circle token2 = new Circle();
+            	token2.setFill(colors[1]);
+            	shipDidCollectToken(token2);
+            	break;
+            case DIGIT3:
+            	Circle token3 = new Circle();
+            	token3.setFill(colors[2]);
+            	shipDidCollectToken(token3);
+            	break;
+            case DIGIT4:
+            	Circle token4 = new Circle();
+            	token4.setFill(colors[3]);
+            	shipDidCollectToken(token4);
+            	break;
+            case DIGIT5:
+            	Circle token5 = new Circle();
+            	token5.setFill(colors[4]);
+            	shipDidCollectToken(token5);
+            	break;
+            case DIGIT6:
+            	Circle token6 = new Circle();
+            	token6.setFill(colors[5]);
+            	shipDidCollectToken(token6);
             	break;
             default:
                 // do nothing
@@ -208,16 +398,7 @@ class ExampleGame {
     }
 
     private void setNewAccelerationCommands(Boolean goRight){
-    	boolean goingRight = shipVelocity > 0;
-    	if (goRight != goingRight){
-//    		if (Math.abs(shipVelocity) > 3)
-//    			commandQueueSize = 6;
-//    		else
-    			commandQueueSize = 3;
-    	}
-    	else{
-    		commandQueueSize = 1;
-    	}
+    	commandQueueSize = 2;
     	commandQueueDirectionRight = goRight;
     }
     
@@ -225,7 +406,6 @@ class ExampleGame {
     	//The rate of change should be high when the user is trying to move in 
     	//the direction opposite the ship's current motion. 
     	boolean changeDirection = !(shipVelocity>0 == goRight || shipVelocity == 0);
-    	System.out.println("RIGHT: " + goRight+ " changeDir: "+ changeDirection);
     	boolean goingRight = shipVelocity >= 0;
     	double velocityChange;
     	if (changeDirection){
@@ -250,7 +430,6 @@ class ExampleGame {
     			shipVelocity += overflow;
     		}
     	}
-    	System.out.println(shipVelocity);
     }
     
     private double calculateAcceleration(double currentSpeed) { 
@@ -264,9 +443,9 @@ class ExampleGame {
     
     // What to do each time a key is pressed
     private void handleMouseInput (double x, double y) {
-        if (myBottomBlock.contains(x, y)) {
-            myBottomBlock.setScaleX(myBottomBlock.getScaleX() * GROWTH_RATE);
-            myBottomBlock.setScaleY(myBottomBlock.getScaleY() * GROWTH_RATE);
-        }
+//        if (myBottomBlock.contains(x, y)) {
+//            myBottomBlock.setScaleX(myBottomBlock.getScaleX() * GROWTH_RATE);
+//            myBottomBlock.setScaleY(myBottomBlock.getScaleY() * GROWTH_RATE);
+//        }
     }
 }
