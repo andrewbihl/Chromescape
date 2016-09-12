@@ -28,10 +28,6 @@ class Gameplay {
     public static final int KEY_INPUT_SPEED = 5;
     private static int NUMBER_OF_OBSTACLES_PER_LINE = 4;
 
-    private static final double SHIP_WIDTH = 25;
-    private static final double SHIP_HEIGHT = 40;
-    private static final double MAX_SPEED = 5.0;
-    private static final double BASE_ACCELERATION_RATE = 0.6;
     private static final int COMMAND_FREQUENCY = 4;
     private static final int STARTING_LIVES_COUNT = 5;
     private static final int COLOR_DURATION = 400;
@@ -40,12 +36,11 @@ class Gameplay {
     private static Color[] colors = {Color.RED, Color.YELLOW, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE};
     
     private Scene myScene;
-    private Polygon myShip;
+    private Ship myShip;
     private HashSet<Rectangle> obstacles;
     private HashSet<Circle> tokens;
     private ArrayList<Polygon> shipLives;
     private Group myRoot;
-    private double shipVelocity = 0.0;
     private boolean goRight = false;
     private boolean goLeft = false;
     private int score = 0;
@@ -74,12 +69,14 @@ class Gameplay {
         // create a place to see the shapes
         myScene = new Scene(root, width, height, Color.BLACK);
         myRoot = root;
-        myShip = makeShip();
+    	double y = 0.8 * myScene.getHeight();
+        myShip = new Ship(y);
+    	myShip.setTranslateX(myScene.getWidth()/2.0);
         stepNum = 0;
         inBonusRound = false;
         nextBonusRound = 500;
         drawShipLives(STARTING_LIVES_COUNT);
-        myShip.setFill(Color.LIGHTGRAY);
+        myShip.setFillToDefault();
         scoreText = new Text("Score: 0");
         scoreText.setX(10);
         scoreText.setY(20);
@@ -101,21 +98,21 @@ class Gameplay {
      * but these simple ways work too.
      */
     
-    private Polygon makeShip(){
-    	double mid = SHIP_WIDTH / 2.0;
-    	double height = myScene.getHeight();
-    	double buffer = myScene.getHeight()/5;
-    	Polygon ship = new Polygon();
-    	ship.getPoints().addAll(new Double[]{
-    			mid, height - buffer - 7,
-    			0.0, height - buffer,
-    			mid,  height - (buffer + SHIP_HEIGHT),
-    			mid * 2.0, height - buffer}
-    			);
-    	ship.setFill(Color.WHITE);
-    	ship.setTranslateX(myScene.getWidth()/2.0);
-    	return ship;
-    }
+//    private Polygon makeShip(){
+//    	double mid = SHIP_WIDTH / 2.0;
+//    	double height = myScene.getHeight();
+//    	double buffer = myScene.getHeight()/5;
+//    	Polygon ship = new Polygon();
+//    	ship.getPoints().addAll(new Double[]{
+//    			mid, height - buffer - 7,
+//    			0.0, height - buffer,
+//    			mid,  height - (buffer + SHIP_HEIGHT),
+//    			mid * 2.0, height - buffer}
+//    			);
+//    	ship.setFill(Color.WHITE);
+//    	ship.setTranslateX(myScene.getWidth()/2.0);
+//    	return ship;
+//    }
     
     private void drawShipLives(int num){
     	for (int i = 0; i < num; i++){
@@ -124,11 +121,11 @@ class Gameplay {
     }
     
     private void addShipLife(){
-		Polygon ship = makeShip();
+		Ship ship = new Ship(50);
 		ship.setScaleX(0.3);
 		ship.setScaleY(0.3);
-		ship.setTranslateX(0.4 * SHIP_WIDTH * shipLives.size());
-		ship.setTranslateY(-(myScene.getHeight() * 0.65));
+		ship.setTranslateX(0.4 * ship.getWidth() * shipLives.size());
+//		ship.setTranslateY(-(myScene.getHeight() * 0.65));
 		shipLives.add(ship);
 		myRoot.getChildren().add(ship);
     }
@@ -154,11 +151,11 @@ class Gameplay {
     	if (currentX >= myScene.getWidth()) {
     		myShip.setTranslateX(0.01);
     	} 
-    	else if (currentX < 0 - SHIP_WIDTH){
+    	else if (currentX < 0 - myShip.getWidth()){
     		myShip.setTranslateX(myScene.getWidth() - 0.01);
     	}
     	else{
-    		myShip.setTranslateX(currentX + shipVelocity);
+    		myShip.setTranslateX(currentX + myShip.getVelocity());
     	}
         
         // check for collisions
@@ -179,10 +176,10 @@ class Gameplay {
         		}
         	}
 	        if (goRight || goLeft && !(goRight && goLeft)){
-	        	accelerateShip(goRight);
+	        	myShip.accelerate(goRight);
 	        }
 	        else{
-	        	shipVelocity *= 0.9;
+	        	myShip.setVelocity(myShip.getVelocity()*0.9);
 	        }
         }
         if ((stepNum + 15) % OBSTACLE_FREQUENCY==0){
@@ -197,7 +194,7 @@ class Gameplay {
         			exitBonusRound();
         	}
         	else if (stepNum - COLOR_DURATION > colorStart){
-        		myShip.setFill(Color.LIGHTGRAY);
+        		myShip.setFillToDefault();
         	}
         }
 	    if (stepNum % OBSTACLE_FREQUENCY == 0){
@@ -215,7 +212,7 @@ class Gameplay {
     }
     
     private void exitBonusRound(){
-    	myShip.setFill(Color.LIGHTGRAY);
+    	myShip.setFillToDefault();
     	myScene.setFill(Color.BLACK);
     	inBonusRound = false;
     	nextBonusRound *= 2;
@@ -428,45 +425,7 @@ class Gameplay {
     	}
     }
     
-    private void accelerateShip(Boolean goRight){
-    	//The rate of change should be high when the user is trying to move in 
-    	//the direction opposite the ship's current motion. 
-    	boolean changeDirection = !(shipVelocity>0 == goRight || shipVelocity == 0);
-    	boolean goingRight = shipVelocity >= 0;
-    	double velocityChange;
-    	if (changeDirection){
-    		velocityChange = calculateDeceleration(Math.abs(shipVelocity));
-    	}
-    	else{
-    		velocityChange = calculateAcceleration(Math.abs(shipVelocity));
-    	}
-    	if (goingRight){
-    		shipVelocity += velocityChange;
-    	} 
-    	else{
-    		shipVelocity -= velocityChange;
-    	}
-    	
-    	double overflow = Math.abs(shipVelocity) - MAX_SPEED;
-    	if (overflow > 0){
-    		if (shipVelocity > 0){
-    			shipVelocity -= overflow;
-    		} 
-    		else {
-    			shipVelocity += overflow;
-    		}
-    	}
-    }
-    
-    private double calculateAcceleration(double currentSpeed) { 
-    	double rateFactor = (MAX_SPEED - currentSpeed)/1.6;
-    	return rateFactor * BASE_ACCELERATION_RATE;
-    }
-    
-    private double calculateDeceleration(double currentSpeed) {
-    	return - (BASE_ACCELERATION_RATE + (currentSpeed / 10.0));
-    }
-    
+
     // What to do each time a key is pressed
     private void handleMouseInput (double x, double y) {
 //        if (myBottomBlock.contains(x, y)) {
