@@ -22,7 +22,7 @@ import java.util.*;
  * 
  * @author Andrew Bihl
  */
-class ExampleGame {
+class Gameplay {
 	
     public static final String TITLE = "Chromescape";
     public static final int KEY_INPUT_SPEED = 5;
@@ -32,16 +32,16 @@ class ExampleGame {
     private static final double SHIP_HEIGHT = 40;
     private static final double MAX_SPEED = 5.0;
     private static final double BASE_ACCELERATION_RATE = 0.6;
-    private static final int COMMAND_FREQUENCY = 5;
+    private static final int COMMAND_FREQUENCY = 4;
     private static final int STARTING_LIVES_COUNT = 5;
     private static final int COLOR_DURATION = 400;
-    private static final int BONUS_ROUND_DURATION = 800;
-    private static int OBSTACLE_FREQUENCY = 65;
+    private static final int BONUS_ROUND_DURATION = 600;
+    private static int OBSTACLE_FREQUENCY = 45;
     private static Color[] colors = {Color.RED, Color.YELLOW, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE};
     
     private Scene myScene;
     private Polygon myShip;
-    private HashSet<Obstacle> obstacles;
+    private HashSet<Rectangle> obstacles;
     private HashSet<Circle> tokens;
     private ArrayList<Polygon> shipLives;
     private Group myRoot;
@@ -53,6 +53,7 @@ class ExampleGame {
     private int stepNum;
     private int colorStart;
     private boolean inBonusRound = false;
+    private int nextBonusRound;
     
     /**
      * Returns name of the game.
@@ -67,7 +68,7 @@ class ExampleGame {
     public Scene init (int width, int height) {
         // create a scene graph to organize the scene
         Group root = new Group();
-        obstacles = new HashSet<Obstacle>();
+        obstacles = new HashSet<Rectangle>();
         tokens = new HashSet<Circle>();
         shipLives = new ArrayList<Polygon>();
         // create a place to see the shapes
@@ -76,6 +77,7 @@ class ExampleGame {
         myShip = makeShip();
         stepNum = 0;
         inBonusRound = false;
+        nextBonusRound = 500;
         drawShipLives(STARTING_LIVES_COUNT);
         myShip.setFill(Color.LIGHTGRAY);
         scoreText = new Text("Score: 0");
@@ -162,7 +164,7 @@ class ExampleGame {
         // check for collisions
         Shape collisionBlock = incrementBlocksInCollection((Iterable)obstacles);
         if (collisionBlock != null){
-        	Obstacle block = (Obstacle) collisionBlock;
+        	Rectangle block = (Rectangle) collisionBlock;
         	shipDidCollide(block);
         }
         Shape tokenCollected = incrementBlocksInCollection((Iterable)tokens);
@@ -172,7 +174,7 @@ class ExampleGame {
         if (stepNum % COMMAND_FREQUENCY == 0){
         	if (!inBonusRound){
         		score++;
-        		if (score % 500 == 0){
+        		if (score == nextBonusRound){
         			enterBonusRound();
         		}
         	}
@@ -199,7 +201,7 @@ class ExampleGame {
         	}
         }
 	    if (stepNum % OBSTACLE_FREQUENCY == 0){
-	        generateLineOfObstacles();
+	        generateLineOfRectangles();
 	    }
 	    scoreText.setText("Score: "+score);
     }
@@ -216,6 +218,7 @@ class ExampleGame {
     	myShip.setFill(Color.LIGHTGRAY);
     	myScene.setFill(Color.BLACK);
     	inBonusRound = false;
+    	nextBonusRound *= 2;
     }
     
     private void gameoverStep(){
@@ -223,16 +226,18 @@ class ExampleGame {
     }
     
     private void gameover(){
-    	Text gameoverMessage = new Text("YOU LOST");
+    	Text gameoverMessage = new Text("Game Over");
     	gameoverMessage.setFill(Color.WHITE);
     	double width = gameoverMessage.getLayoutBounds().getWidth();
     	gameoverMessage.setX(myScene.getWidth()/2 - width/2);
     	gameoverMessage.setY(myScene.getHeight()/2);
+    	
     	double buttonY = gameoverMessage.getY() + gameoverMessage.getBoundsInLocal().getHeight();
-    	Button restartButton = new Button("Play Again?");
+    	Button restartButton = new Button("Play Again");
     	restartButton.setLayoutY(buttonY);
-    	restartButton.setLayoutX(myScene.getWidth()/2);
+    	restartButton.setLayoutX(myScene.getWidth()/2 - 40);
     	restartButton.setOnAction(e->restartGame());
+    	
     	myRoot.getChildren().add(gameoverMessage);
     	myRoot.getChildren().add(restartButton);
     	
@@ -245,30 +250,6 @@ class ExampleGame {
     	Scene newScene = init((int)myScene.getWidth(), (int)myScene.getHeight());
     	stage.setScene(newScene);
     }
-    
-//    private void incrementBlocks(){
-//    	double height = myScene.getHeight();
-////    	Iterator<Obstacle> iterator = obstacles.iterator();
-//    	Obstacle collisionBlock = null;
-////    	System.out.println(shipPoint);
-//    	
-//    	while (iterator.hasNext()) {
-//    	    Obstacle block = iterator.next();
-//    		if (block.getTranslateY() > height){
-//    			root.getChildren().remove(block);
-//    			iterator.remove();
-//    		}
-//    		else if (block.touchesPoint(x,y, horizontalBuffer, 0)){
-//    			collisionBlock = block;
-//			}
-//    		else{
-//    			block.setTranslateY(block.getTranslateY()+5);
-//    		}
-//    	}
-//    	if (collisionBlock != null){
-//    		shipDidCollide(collisionBlock);
-//    	}
-//    }
     
     private Shape incrementBlocksInCollection (Iterable<Shape> collection){
     	Group root = myRoot;
@@ -304,7 +285,7 @@ class ExampleGame {
 				point.getX() - horizontalBuffer < s.getBoundsInParent().getMaxX();
 	}
     
-    private void shipDidCollide(Obstacle block){
+    private void shipDidCollide(Rectangle block){
     	if (!inBonusRound){
 	    	if (!myShip.getFill().equals(block.getFill())){
 		    	removeShipLife();
@@ -330,7 +311,7 @@ class ExampleGame {
     	myRoot.getChildren().remove(token);
     }
     
-    private void generateLineOfObstacles() {
+    private void generateLineOfRectangles() {
     	double blockWidth = myScene.getWidth() / (NUMBER_OF_OBSTACLES_PER_LINE * 2);
 		Group root = myRoot;
 		ArrayList<Integer> indices = new ArrayList<Integer>();
@@ -340,14 +321,14 @@ class ExampleGame {
     	for (int i = 0; i < NUMBER_OF_OBSTACLES_PER_LINE; i ++){
     		int rand = (int) (Math.random() * indices.size());
     		Integer index = indices.remove(rand);
-    		Obstacle obstacle = generateObstacle(index * blockWidth, blockWidth, null);
+    		Rectangle obstacle = generateRectangle(index * blockWidth, blockWidth, null);
     		obstacles.add(obstacle);
     		root.getChildren().add(obstacle);
     	}
     }
     
-    private Obstacle generateObstacle(double x, double width, Color color){
-    	Obstacle obstacle = new Obstacle();
+    private Rectangle generateRectangle(double x, double width, Color color){
+    	Rectangle obstacle = new Rectangle();
     	if (color == null) {
     		color = chooseRandomColor();
     	}
@@ -380,7 +361,6 @@ class ExampleGame {
     
     // What to do each time a key is pressed
     private void handleKeyPress (KeyCode code) {
-    	System.out.println("ASDJ");
         switch (code) {
             case RIGHT:
                 goRight = true;
@@ -437,7 +417,6 @@ class ExampleGame {
     }
 
     private void handleKeyRelease(KeyCode code){
-    	System.out.println("RETST");
     	switch (code){
     		case RIGHT:
     			goRight = false;
