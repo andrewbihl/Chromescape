@@ -24,7 +24,7 @@ import java.util.*;
  */
 class ExampleGame {
 	
-    public static final String TITLE = "My Game";
+    public static final String TITLE = "Chromescape";
     public static final int KEY_INPUT_SPEED = 5;
     private static int NUMBER_OF_OBSTACLES_PER_LINE = 4;
 
@@ -34,8 +34,9 @@ class ExampleGame {
     private static final double BASE_ACCELERATION_RATE = 0.6;
     private static final int COMMAND_FREQUENCY = 5;
     private static final int STARTING_LIVES_COUNT = 5;
-    private static final int COLOR_DURATION = 200;
-    private static int OBSTACLE_FREQUENCY = 35;
+    private static final int COLOR_DURATION = 400;
+    private static final int BONUS_ROUND_DURATION = 800;
+    private static int OBSTACLE_FREQUENCY = 65;
     private static Color[] colors = {Color.RED, Color.YELLOW, Color.BLUE, Color.GREEN, Color.ORANGE, Color.PURPLE};
     
     private Scene myScene;
@@ -45,12 +46,13 @@ class ExampleGame {
     private ArrayList<Polygon> shipLives;
     private Group myRoot;
     private double shipVelocity = 0.0;
-    private int commandQueueSize = 0;
-    private boolean commandQueueDirectionRight = true;
-    private int distance = 0;
+    private boolean goRight = false;
+    private boolean goLeft = false;
+    private int score = 0;
     private Text scoreText;
     private int stepNum;
     private int colorStart;
+    private boolean inBonusRound = false;
     
     /**
      * Returns name of the game.
@@ -73,18 +75,20 @@ class ExampleGame {
         myRoot = root;
         myShip = makeShip();
         stepNum = 0;
+        inBonusRound = false;
         drawShipLives(STARTING_LIVES_COUNT);
         myShip.setFill(Color.LIGHTGRAY);
-        scoreText = new Text("0");
+        scoreText = new Text("Score: 0");
         scoreText.setX(10);
         scoreText.setY(20);
         scoreText.setFill(Color.WHITE);
         root.getChildren().add(myShip);
         root.getChildren().add(scoreText);
         // respond to input
-        myScene.setOnKeyPressed(e -> handleKeyInput(e.getCode()));
+        myScene.setOnKeyPressed(e -> handleKeyPress(e.getCode()));
+        myScene.setOnKeyReleased(e -> handleKeyRelease(e.getCode()));
         myScene.setOnMouseClicked(e -> handleMouseInput(e.getX(), e.getY()));
-        distance = 0;
+        score = 0;
         return myScene;
     }
 
@@ -94,6 +98,7 @@ class ExampleGame {
      * Note, there are more sophisticated ways to animate shapes,
      * but these simple ways work too.
      */
+    
     private Polygon makeShip(){
     	double mid = SHIP_WIDTH / 2.0;
     	double height = myScene.getHeight();
@@ -121,6 +126,7 @@ class ExampleGame {
 		ship.setScaleX(0.3);
 		ship.setScaleY(0.3);
 		ship.setTranslateX(0.4 * SHIP_WIDTH * shipLives.size());
+		ship.setTranslateY(-(myScene.getHeight() * 0.65));
 		shipLives.add(ship);
 		myRoot.getChildren().add(ship);
     }
@@ -164,9 +170,14 @@ class ExampleGame {
         	shipDidCollectToken((Circle)tokenCollected);
         }
         if (stepNum % COMMAND_FREQUENCY == 0){
-	        if (commandQueueSize > 0){
-	        	accelerateShip(commandQueueDirectionRight);
-	        	commandQueueSize --;
+        	if (!inBonusRound){
+        		score++;
+        		if (score % 500 == 0){
+        			enterBonusRound();
+        		}
+        	}
+	        if (goRight || goLeft && !(goRight && goLeft)){
+	        	accelerateShip(goRight);
 	        }
 	        else{
 	        	shipVelocity *= 0.9;
@@ -179,15 +190,32 @@ class ExampleGame {
         		tokens.add(token);
         		myRoot.getChildren().add(token);
         	}
-        	if (stepNum - 600 > colorStart){
+        	if (inBonusRound){
+        		if (stepNum - BONUS_ROUND_DURATION > colorStart )
+        			exitBonusRound();
+        	}
+        	else if (stepNum - COLOR_DURATION > colorStart){
         		myShip.setFill(Color.LIGHTGRAY);
         	}
         }
 	    if (stepNum % OBSTACLE_FREQUENCY == 0){
-	    	distance++;
 	        generateLineOfObstacles();
 	    }
-	    scoreText.setText(String.valueOf(distance));
+	    scoreText.setText("Score: "+score);
+    }
+    
+    private void enterBonusRound(){
+    	addShipLife();
+    	myShip.setFill(Color.WHITE);
+    	myScene.setFill(Color.DARKGRAY);
+    	inBonusRound = true;
+    	colorStart = stepNum;
+    }
+    
+    private void exitBonusRound(){
+    	myShip.setFill(Color.LIGHTGRAY);
+    	myScene.setFill(Color.BLACK);
+    	inBonusRound = false;
     }
     
     private void gameoverStep(){
@@ -277,15 +305,20 @@ class ExampleGame {
 	}
     
     private void shipDidCollide(Obstacle block){
-    	if (!myShip.getFill().equals(block.getFill())){
-	    	removeShipLife();
-	    	if (shipLives.size() == 0) {
-	    		gameover();
+    	if (!inBonusRound){
+	    	if (!myShip.getFill().equals(block.getFill())){
+		    	removeShipLife();
+		    	if (shipLives.size() == 0) {
+		    		gameover();
+		    	}
 	    	}
-    	}
-    	else{
-    		addShipLife();
-    	}
+	    	else{
+	    		addShipLife();
+	    	}
+	    }
+	    else{
+	    	score += 10;
+	    }
     	myRoot.getChildren().remove(block);
     	obstacles.remove(block);
     }
@@ -319,6 +352,8 @@ class ExampleGame {
     		color = chooseRandomColor();
     	}
     	obstacle.setFill(color);
+    	if (inBonusRound)
+    		width *= 0.5;
     	obstacle.setWidth(width);
     	obstacle.setHeight(20);
     	obstacle.setX(x);
@@ -344,13 +379,14 @@ class ExampleGame {
     }
     
     // What to do each time a key is pressed
-    private void handleKeyInput (KeyCode code) {
+    private void handleKeyPress (KeyCode code) {
+    	System.out.println("ASDJ");
         switch (code) {
             case RIGHT:
-                setNewAccelerationCommands(true);
+                goRight = true;
                 break;
             case LEFT:
-                setNewAccelerationCommands(false);
+                goLeft = true;
                 break;
             case UP:
             	if (OBSTACLE_FREQUENCY > 1)
@@ -392,14 +428,25 @@ class ExampleGame {
             	token6.setFill(colors[5]);
             	shipDidCollectToken(token6);
             	break;
+            case B:
+            	enterBonusRound();
+            	break;
             default:
                 // do nothing
         }
     }
 
-    private void setNewAccelerationCommands(Boolean goRight){
-    	commandQueueSize = 2;
-    	commandQueueDirectionRight = goRight;
+    private void handleKeyRelease(KeyCode code){
+    	System.out.println("RETST");
+    	switch (code){
+    		case RIGHT:
+    			goRight = false;
+    			break;
+    		case LEFT:
+    			goLeft = false;
+    			break;
+    		default:
+    	}
     }
     
     private void accelerateShip(Boolean goRight){
