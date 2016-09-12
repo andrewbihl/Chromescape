@@ -24,8 +24,7 @@ import java.util.*;
  */
 class Gameplay {
 	
-    public static final String TITLE = "Chromescape";
-    public static final int KEY_INPUT_SPEED = 5;
+    private static final String TITLE = "Chromescape";
     private static int NUMBER_OF_OBSTACLES_PER_LINE = 4;
 
     private static final int COMMAND_FREQUENCY = 4;
@@ -86,33 +85,9 @@ class Gameplay {
         // respond to input
         myScene.setOnKeyPressed(e -> handleKeyPress(e.getCode()));
         myScene.setOnKeyReleased(e -> handleKeyRelease(e.getCode()));
-        myScene.setOnMouseClicked(e -> handleMouseInput(e.getX(), e.getY()));
         score = 0;
         return myScene;
     }
-
-    /**
-     * Change properties of shapes to animate them
-     * 
-     * Note, there are more sophisticated ways to animate shapes,
-     * but these simple ways work too.
-     */
-    
-//    private Polygon makeShip(){
-//    	double mid = SHIP_WIDTH / 2.0;
-//    	double height = myScene.getHeight();
-//    	double buffer = myScene.getHeight()/5;
-//    	Polygon ship = new Polygon();
-//    	ship.getPoints().addAll(new Double[]{
-//    			mid, height - buffer - 7,
-//    			0.0, height - buffer,
-//    			mid,  height - (buffer + SHIP_HEIGHT),
-//    			mid * 2.0, height - buffer}
-//    			);
-//    	ship.setFill(Color.WHITE);
-//    	ship.setTranslateX(myScene.getWidth()/2.0);
-//    	return ship;
-//    }
     
     private void drawShipLives(int num){
     	for (int i = 0; i < num; i++){
@@ -125,7 +100,6 @@ class Gameplay {
 		ship.setScaleX(0.3);
 		ship.setScaleY(0.3);
 		ship.setTranslateX(0.4 * ship.getWidth() * shipLives.size());
-//		ship.setTranslateY(-(myScene.getHeight() * 0.65));
 		shipLives.add(ship);
 		myRoot.getChildren().add(ship);
     }
@@ -146,7 +120,6 @@ class Gameplay {
     }
     
     private void gameplayStep(){
-        // update attributes
     	double currentX = myShip.getTranslateX();
     	if (currentX >= myScene.getWidth()) {
     		myShip.setTranslateX(0.01);
@@ -252,11 +225,6 @@ class Gameplay {
     	Group root = myRoot;
     	double height = myScene.getHeight();
     	Iterator<Shape> iterator = collection.iterator();
-    	Bounds bounds = myShip.getBoundsInParent();
-    	double x = bounds.getMinX() + (bounds.getWidth()/2);
-    	double y = bounds.getMaxY() - bounds.getHeight() + 6;
-    	Point2D shipCollisionPoint = new Point2D(x, y);
-    	double horizontalBuffer = bounds.getWidth() / 4;
     	Shape collisionBlock = null;
     	
     	while (iterator.hasNext()) {
@@ -265,7 +233,7 @@ class Gameplay {
     			root.getChildren().remove(block);
     			iterator.remove();
     		}
-    		else if (shapeTouchesShipPoint(block, shipCollisionPoint, horizontalBuffer, 0)){
+    		else if (myShip.collidesWithShape(block)){
     			collisionBlock = block;
 			}
     		else{
@@ -274,13 +242,7 @@ class Gameplay {
     	}
     	return collisionBlock;
     }
-    
-	public boolean shapeTouchesShipPoint(Shape s, Point2D point, double horizontalBuffer, double verticalBuffer) {
-		return  point.getY() + verticalBuffer > s.getBoundsInParent().getMinY() &&
-				point.getY() - verticalBuffer < s.getBoundsInParent().getMaxY() &&
-				point.getX() + horizontalBuffer > s.getBoundsInParent().getMinX() && 
-				point.getX() - horizontalBuffer < s.getBoundsInParent().getMaxX();
-	}
+
     
     private void shipDidCollide(Rectangle block){
     	if (!inBonusRound){
@@ -424,13 +386,5 @@ class Gameplay {
     		default:
     	}
     }
-    
-
-    // What to do each time a key is pressed
-    private void handleMouseInput (double x, double y) {
-//        if (myBottomBlock.contains(x, y)) {
-//            myBottomBlock.setScaleX(myBottomBlock.getScaleX() * GROWTH_RATE);
-//            myBottomBlock.setScaleY(myBottomBlock.getScaleY() * GROWTH_RATE);
-//        }
-    }
+   
 }

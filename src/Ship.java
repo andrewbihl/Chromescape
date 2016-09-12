@@ -1,6 +1,13 @@
+import javafx.geometry.Bounds;
+import javafx.geometry.Point2D;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Polygon;
+import javafx.scene.shape.Shape;
 
+/**
+ * @author andrewbihl
+ *
+ */
 public class Ship extends Polygon {
     private static final double SHIP_WIDTH = 25;
     private static final double SHIP_HEIGHT = 40;
@@ -18,6 +25,19 @@ public class Ship extends Polygon {
     			mid * 2.0, y}
     			);
     	setFill(Color.WHITE);
+	}
+	
+    
+	public boolean collidesWithShape(Shape s) {
+    	Bounds bounds = getBoundsInParent();
+		double x = bounds.getMinX() + (bounds.getWidth()/2);
+    	double y = bounds.getMaxY() - bounds.getHeight() + 6;
+    	double horizontalBuffer = getWidth() / 4;
+    	double verticalBuffer = 0;
+		return  y + verticalBuffer > s.getBoundsInParent().getMinY() &&
+				y - verticalBuffer < s.getBoundsInParent().getMaxY() &&
+				x + horizontalBuffer > s.getBoundsInParent().getMinX() && 
+				x - horizontalBuffer < s.getBoundsInParent().getMaxX();
 	}
 	
     public void accelerate(Boolean goRight){
