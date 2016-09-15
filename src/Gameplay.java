@@ -284,6 +284,7 @@ class Gameplay {
 		int numberOfBlocks = NUMBER_OF_OBSTACLES_PER_LINE;
 		if (inBonusRound){
 			numberOfBlocks *= 0.5;
+			blockWidth *= 0.5;
 		}
     	for (int i = 0; i < numberOfBlocks; i ++){
     		int rand = (int) (Math.random() * indices.size());
@@ -300,8 +301,6 @@ class Gameplay {
     		color = chooseRandomColor();
     	}
     	obstacle.setFill(color);
-    	if (inBonusRound)
-    		width *= 0.5;
     	obstacle.setWidth(width);
     	obstacle.setHeight(20);
     	obstacle.setX(x);
