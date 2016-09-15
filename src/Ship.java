@@ -4,6 +4,13 @@ import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Shape;
 
 /**
+ * This is my "code masterpiece" for the project. This class holds the logic for the Ship
+ * that the user controls. It is good because it separates key responsibilities about the
+ * Ship from the rest of the code, making the project more flexible. For example, to change
+ * the appearance, size, or physics/motion of the ship would be easy because the code is 
+ * separate and modular. It is readable, and does not allow other classes to see too much.
+ *
+ * 
  * @author andrewbihl
  *
  */
