@@ -1,5 +1,4 @@
 import javafx.geometry.Bounds;
-import javafx.geometry.Point2D;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Shape;
@@ -46,8 +45,9 @@ public class Ship extends Polygon {
      * Tells the ship to accelerate right or left
      */
     public void accelerate(Boolean goRight){
-    	boolean changeDirection = !(velocity>0 == goRight || velocity == 0);
-    	boolean goingRight = velocity >= 0;
+    	boolean goingRight = velocity > 0;
+    	boolean notMoving = velocity == 0;
+    	boolean changeDirection = !(goingRight == goRight || notMoving);
     	double velocityChange;
     	if (changeDirection){
     		velocityChange = calculateDeceleration(Math.abs(velocity));
@@ -55,22 +55,13 @@ public class Ship extends Polygon {
     	else{
     		velocityChange = calculateAcceleration(Math.abs(velocity));
     	}
-    	if (goingRight){
+    	if (goingRight || notMoving && goRight){
     		velocity += velocityChange;
     	} 
     	else{
     		velocity -= velocityChange;
     	}
-    	
-    	double overflow = Math.abs(velocity) - MAX_SPEED;
-    	if (overflow > 0){
-    		if (velocity > 0){
-    			velocity -= overflow;
-    		} 
-    		else {
-    			velocity += overflow;
-    		}
-    	}
+    	constrainVelocityToMaxSpeed();
     }
     
     private double calculateAcceleration(double currentSpeed) { 
@@ -80,6 +71,18 @@ public class Ship extends Polygon {
     
     private double calculateDeceleration(double currentSpeed) {
     	return - (BASE_ACCELERATION_RATE + (currentSpeed / 10.0));
+    }
+    
+    private void constrainVelocityToMaxSpeed(){
+    	double overflow = Math.abs(velocity) - MAX_SPEED;
+    	if (overflow > 0){
+    		if (velocity > 0){
+    			velocity -= overflow;
+    		} 
+    		else {
+    			velocity += overflow;
+    		}
+    	}
     }
     
     /**
